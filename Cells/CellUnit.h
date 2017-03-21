@@ -1,26 +1,16 @@
 #pragma once
 
-struct pixel;
+#include "BaseUnit.h"
 
-class CCellUnit
+class CCellUnit : public CBaseUnit
 {
 public:
     CCellUnit();
     ~CCellUnit();
 
-    void render(pixel* _pixels);
-    void changeState();
-    bool needRender() const;
-
 public:
-    int width;
-    int height;
-    int posX;
-    int posY;
+    void render(pixel* _pixels) override;
+    void changeState() override;
 
-    bool isActive;
-    bool isNeedRedraw;
-    long animationState;
-
+    long animationProgress;
 };
-

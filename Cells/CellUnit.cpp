@@ -4,39 +4,23 @@
 #include "SettingsManager.h"
 
 CCellUnit::CCellUnit()
-    : width(0)
-    , height(0)
-    , posX(0)
-    , posY(0)
-    , isActive(false)
-    , isNeedRedraw(true)
-    , animationState(0)
+    : CBaseUnit()
+    , animationProgress(11)
 {
 }
-
 
 CCellUnit::~CCellUnit()
 {
 }
 
-void CCellUnit::changeState()
-{
-    isActive = !isActive;
-    isNeedRedraw = true;
-}
-
-bool CCellUnit::needRender() const
-{
-    return isNeedRedraw;
-}
-
 void CCellUnit::render(pixel* _pixels)
 {
+/*  static drawing without animation  
     for (int i = 0; i < width; ++i)
     {
         for (int j = 0; j < height; ++j)
         {
-            pixel* current = &_pixels[posY * 1600 + posX + j * 1600 + i];
+            pixel* current = &_pixels[y * CSettingsManager::Instance().getScreenWidth() + x + j * CSettingsManager::Instance().getScreenWidth() + i];
           
             if (true == isActive)
             {
@@ -52,6 +36,93 @@ void CCellUnit::render(pixel* _pixels)
             }
         }
     }
+*/
+    if (animationStatus::stop == animation)
+    {
+        isNeedRedraw = false;
+        return;
+    }
 
-    isNeedRedraw = false;
+    if (animationStatus::playForward == animation)
+        ++animationProgress;
+    else
+    if (animationStatus::playBack == animation)
+        --animationProgress;
+
+    for (int i = 0; i < width  - width * (11 - animationProgress) / 10; ++i)
+    {
+        for (int j = 0; j < height; ++j)
+        {
+            pixel* current = &_pixels[y * CSettingsManager::Instance().getScreenWidth() + x + j * CSettingsManager::Instance().getScreenWidth() + i];
+
+            if (true == isActive || animation == animationStatus::playForward || animation == animationStatus::playBack)
+            {
+                current->r = GetRValue(CSettingsManager::Instance().getActiveCellFill());
+                current->g = GetGValue(CSettingsManager::Instance().getActiveCellFill());
+                current->b = GetBValue(CSettingsManager::Instance().getActiveCellFill());
+            }
+            else
+            {
+                current->r = GetRValue(CSettingsManager::Instance().getInactiveCellFill());
+                current->g = GetGValue(CSettingsManager::Instance().getInactiveCellFill());
+                current->b = GetBValue(CSettingsManager::Instance().getInactiveCellFill());
+            }
+        }
+    }
+    
+    for (int i = width - width * (11 - animationProgress) / 10; i < width; ++i)
+    {
+        for (int j = 0; j < height; ++j)
+        {
+            pixel* current = &_pixels[y * CSettingsManager::Instance().getScreenWidth() + x + j * CSettingsManager::Instance().getScreenWidth() + i];
+
+            if (true == isActive || animation == animationStatus::playForward || animation == animationStatus::playBack)
+            {
+                current->r = GetRValue(CSettingsManager::Instance().getInactiveCellFill());
+                current->g = GetGValue(CSettingsManager::Instance().getInactiveCellFill());
+                current->b = GetBValue(CSettingsManager::Instance().getInactiveCellFill());
+            }
+            else
+            {
+                current->r = GetRValue(CSettingsManager::Instance().getActiveCellFill());
+                current->g = GetGValue(CSettingsManager::Instance().getActiveCellFill());
+                current->b = GetBValue(CSettingsManager::Instance().getActiveCellFill());
+            }
+        }
+    }
+
+    // ending animation
+    if (animationStatus::firstDraw == animation 
+        || animationProgress == 11
+        || animationProgress == 1)
+        animation = animationStatus::stop;
+
+    isNeedRedraw = true;
+}
+
+void CCellUnit::changeState()
+{
+    if (animation != animationStatus::stop)
+    {
+        if (animation == animationStatus::playBack)
+            animation = animationStatus::playForward;
+        else
+        if (animation == animationStatus::playForward)
+            animation = animationStatus::playBack;
+    }
+    else
+    {
+        if (false == isActive)
+        {
+            animation = animationStatus::playForward;
+            animationProgress = 1;
+        }
+        else
+        {
+            animation = animationStatus::playBack;
+            animationProgress = 10;
+        }
+    }
+
+    CBaseUnit::changeState();
 }

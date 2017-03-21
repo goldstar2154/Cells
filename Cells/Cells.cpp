@@ -118,12 +118,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    tagRECT rcClient;
    GetClientRect(hWnd, &rcClient);
-   // Initializing render work area
+   
+   CSettingsManager::Instance().setScreenParam(rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
    renderEngine.setHandles(hWnd, GetDC(hWnd));
-   renderEngine.setWorkingArea(rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
-   renderEngine.setUnitSizes(CSettingsManager::Instance().getCellWidth(), CSettingsManager::Instance().getCellHeight());
-   renderEngine.setUnitColors(CSettingsManager::Instance().getInactiveCellFill(), CSettingsManager::Instance().getInactiveCellBorder(), 
-       CSettingsManager::Instance().getActiveCellFill(), CSettingsManager::Instance().getActiveCellBorder());
+
  //  renderEngine.start();
 
    // UpdateWindow also call WM_PAINT & render starts work
@@ -148,7 +146,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_LBUTTONUP:
-        renderEngine.actionHandle(actionType::mouseClick, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        renderEngine.handleAction(actionType::mouseClick, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         break;
     case WM_COMMAND:
         {
@@ -172,8 +170,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             
-            BitBlt(hdc, 0, 0, renderEngine.getWidth(), renderEngine.getHeight(), renderEngine.getDC(), 0, 0, SRCCOPY);
-
             EndPaint(hWnd, &ps);
         }
         break;

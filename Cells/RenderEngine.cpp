@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <iostream>
 #include "SettingsManager.h"
+#include "CellUnit.h"
+#include "LineUnit.h"
+#include "SquareUnit.h"
 
 CRenderEngine::CRenderEngine()
 {
@@ -20,36 +23,6 @@ void CRenderEngine::setHandles(HWND _hWnd, HDC _hDC)
     hSourceDC = _hDC;
 }
 
-void CRenderEngine::setWorkingArea(const long& _screenWidth, const long& _screenHeight)
-{
-    screenHeight = _screenHeight;
-    screenWidth = _screenWidth;
-}
-
-void CRenderEngine::setUnitSizes(const int& _unitWidth, const int& _unitHeight)
-{
-    unitWidth = _unitWidth;
-    unitHeight = _unitHeight;
-}
-
-void CRenderEngine::setUnitColors(const COLORREF& _inactiveFill, const COLORREF& _inactiveBorder, const COLORREF& _activeFill, const COLORREF& _activeBorder)
-{
-    inactiveFill = _inactiveFill;
-    inactiveBorder = _inactiveBorder;
-    activeFill = _activeFill;
-    activeBorder = _activeBorder;
-}
-
-int CRenderEngine::getWidth() const
-{
-    return screenWidth;
-}
-
-int CRenderEngine::getHeight() const
-{
-    return screenHeight;
-}
-
 HDC CRenderEngine::getDC() const
 {
     return hWorkingDC;
@@ -57,40 +30,74 @@ HDC CRenderEngine::getDC() const
 
 void CRenderEngine::start()
 {
-    // calculating count of units
-    upw = (screenWidth - 1) / (unitWidth + 1);
-    uph = (screenHeight - 1) / (unitHeight + 1);
-
     hWorkingDC = CreateCompatibleDC(hSourceDC);
 
-//    hWorkingDC = GetDC(hSourceWnd);
+    // calculating count of units
+    upw = (CSettingsManager::Instance().getScreenWidth() - CSettingsManager::Instance().getBorderWidth()) / (CSettingsManager::Instance().getCellWidth() + CSettingsManager::Instance().getBorderWidth());
+    uph = (CSettingsManager::Instance().getScreenHeight() - CSettingsManager::Instance().getBorderWidth()) / (CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth());
 
-    SetDCBrushColor(hWorkingDC, RGB(120, 120, 120));
-
-    LineTo(hWorkingDC, 50, 50);
-
-    // initializing units
-    units = new CCellUnit[upw*uph];
-
-
+    // creating & initializing units
+    // cells
+    cellUnits = new CCellUnit[upw * uph];
     for (int i = 0; i < upw; ++i)
     {
         for (int j = 0; j < uph; ++j)
         {
-            CCellUnit* current = &units[i + j * upw];
-            current->width = unitWidth;
-            current->height = unitHeight;
+            CCellUnit* current = &cellUnits[i + j * upw];
 
-            current->posX = i*unitWidth + 1 * (i + 1);
-            current->posY = j*unitHeight + 1 * (j + 1);
+            current->setSizes(CSettingsManager::Instance().getCellWidth(), CSettingsManager::Instance().getCellHeight());
+            current->setPos(i * CSettingsManager::Instance().getCellWidth() + CSettingsManager::Instance().getBorderWidth() * (i + 1), 
+                            j * CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth() * (j + 1));
         }
     }
 
-    // Creating drawing bitmap   
+    // lines
+    // horizontal lines
+    horLines = new CLineUnit[upw * (uph + 1)];
+    for (int i = 0; i < upw; ++i)
+    {
+        for (int j = 0; j < uph + 1; j++)
+        {
+            CLineUnit* current = &horLines[i + j * upw];
+
+            current->setSizes(CSettingsManager::Instance().getCellWidth(), CSettingsManager::Instance().getBorderWidth());
+            current->setPos(i * (CSettingsManager::Instance().getCellWidth() + CSettingsManager::Instance().getBorderWidth()) + CSettingsManager::Instance().getBorderWidth(),
+                j * (CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth()));
+        }
+    }
+    // vertical Lines
+    vertLines = new CLineUnit[(upw + 1) * uph];
+    for (int i = 0; i < upw + 1; ++i)
+    {
+        for (int j = 0; j < uph; j++)
+        {
+            CLineUnit* current = &vertLines[i + j * (upw + 1)];
+
+            current->setSizes(CSettingsManager::Instance().getBorderWidth(), CSettingsManager::Instance().getCellHeight());
+            current->setPos(i * (CSettingsManager::Instance().getCellWidth() + CSettingsManager::Instance().getBorderWidth()),
+                j * (CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth()) + CSettingsManager::Instance().getBorderWidth());
+        }
+    }
+    
+    // squares
+    squareUnits = new CSquareUnit[(upw + 1) * (uph + 1)];
+    for (int i = 0; i < upw + 1; ++i)
+    {
+        for (int j = 0; j < uph + 1; ++j)
+        {
+            CSquareUnit* current = &squareUnits[i + j * (upw + 1)];
+
+            current->setSizes(CSettingsManager::Instance().getBorderWidth(), CSettingsManager::Instance().getBorderWidth());
+            current->setPos(i * (CSettingsManager::Instance().getCellWidth() + CSettingsManager::Instance().getBorderWidth()),
+                j * (CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth()));
+        }
+    }
+
+    // Creating drawing bitmap for direct memory access
     BITMAPINFO bmi;
     bmi.bmiHeader.biSize = sizeof(BITMAPINFO);
-    bmi.bmiHeader.biWidth = screenWidth;
-    bmi.bmiHeader.biHeight = -screenHeight;
+    bmi.bmiHeader.biWidth = CSettingsManager::Instance().getScreenWidth();
+    bmi.bmiHeader.biHeight = -CSettingsManager::Instance().getScreenHeight();   // minus for reverting array from top to bottom
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32; // last byte not used, 32 bit for alignment
     bmi.bmiHeader.biCompression = BI_RGB;
@@ -103,58 +110,91 @@ void CRenderEngine::start()
     bmi.bmiColors[0].rgbGreen = 0;
     bmi.bmiColors[0].rgbRed = 0;
     bmi.bmiColors[0].rgbReserved = 0;
-    HDC hdc = GetDC(hSourceWnd);
-    // Create DIB section to always give direct access to pixels
-    hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&pixels, NULL, 0);
-    DeleteDC(hdc);
+    
+    hBitmap = CreateDIBSection(hSourceDC, &bmi, DIB_RGB_COLORS, (void**)&pixels, NULL, 0);
 
+    // main render thread
     renderThread = std::thread([=] { render(); });
     renderThread.detach();
+}
+
+template<typename T>
+void renderUnits(T* _array, const long& _size, pixel* _pixels)
+{
+    for (auto i = 0; i < _size; ++i)
+    {
+        T* cell = &_array[i];
+
+        if (true == cell->needRender())
+            cell->render(_pixels);
+    }
 }
 
 void CRenderEngine::render()
 {
     for (;;)
     {
-        for (int i = 0; i < this->upw; ++i)
-        {
-            for (int j = 0; j < uph; ++j)
-            {
-                CCellUnit* current = &units[i * uph + j];
-                
-                if (true == current->needRender())
-                    current->render(pixels);
-            }
-        }
+        // rendering all units on memory
+        renderUnits(cellUnits,   upw * uph,             pixels);
+        renderUnits(horLines,    upw * (uph + 1),       pixels);
+        renderUnits(vertLines,   (upw + 1) * uph,       pixels);
+        renderUnits(squareUnits, (upw + 1) * (uph + 1), pixels);
         
-        hWorkingDC = CreateCompatibleDC(hSourceDC);
-        HBITMAP hbmOld = (HBITMAP)SelectObject(hWorkingDC, hBitmap);
-
-        BitBlt(hSourceDC, 0, 0, screenWidth, screenHeight, hWorkingDC, 0, 0, SRCCOPY);
-
-        SelectObject(hWorkingDC, hbmOld);
-
+        // selecting data from bitmap to working DC
+        SelectObject(hWorkingDC, hBitmap);
+        // copy data into main window DC
+        BitBlt(hSourceDC, 0, 0, CSettingsManager::Instance().getScreenWidth(), CSettingsManager::Instance().getScreenHeight(), hWorkingDC, 0, 0, SRCCOPY);
+        // repaint main window
         UpdateWindow(hSourceWnd);
 
-        Sleep(25);
-
+        Sleep(CSettingsManager::Instance().getDelay());
     }
-
 }
 
-void CRenderEngine::actionHandle(actionType, const int& mouseX, const int& mouseY)
+template<typename T>
+void updateUnitState(T* _array, const long& _index, const bool& isCellActive)
 {
-    // allocating object
+    T* unit = &_array[_index];
+    bool isUnitActive = unit->getState();
+    if (isCellActive && isUnitActive)
+        unit->changeVisibility(false);
+    else
+        unit->changeVisibility(true);
+    unit->changeState();
+}
 
+void CRenderEngine::handleAction(actionType, const int& mouseX, const int& mouseY)
+{
     // check line hit
-    if (0 == (mouseX % (CSettingsManager::Instance().getCellWidth() + 1)) || 0 == (mouseY % (CSettingsManager::Instance().getCellHeight() + 1)))
+    if (CSettingsManager::Instance().getBorderWidth() > (mouseX % (CSettingsManager::Instance().getCellWidth() + CSettingsManager::Instance().getBorderWidth()))
+        || CSettingsManager::Instance().getBorderWidth() > (mouseY % (CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth()))
+        || mouseX > (CSettingsManager::Instance().getCellWidth()* upw + CSettingsManager::Instance().getBorderWidth() * (upw + 1))
+        || mouseY > (CSettingsManager::Instance().getCellHeight()* uph + CSettingsManager::Instance().getBorderWidth() * (uph + 1)))
         return;
 
     // detect hitted object
-    int uX = (mouseX - 1) / (CSettingsManager::Instance().getCellWidth() + 1);
-    int uY = (mouseY - 1) / (CSettingsManager::Instance().getCellHeight() + 1);
+    int uX = (mouseX - CSettingsManager::Instance().getBorderWidth()) / (CSettingsManager::Instance().getCellWidth() + CSettingsManager::Instance().getBorderWidth());
+    int uY = (mouseY - CSettingsManager::Instance().getBorderWidth()) / (CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth());
 
-    CCellUnit* current = &units[uX + uY * upw];
+    CCellUnit* current = &cellUnits[uX + uY * upw];
     current->changeState();
+    bool isCellActive = current->getState();
 
+    // after hitting we need update states of all nearby units
+    // top line
+    updateUnitState(horLines, uX + uY * upw, isCellActive);
+    // bottom line
+    updateUnitState(horLines, uX + (uY + 1) * upw, isCellActive);
+    // left line
+    updateUnitState(vertLines, uX + uY * (upw + 1), isCellActive);
+    // right line
+    updateUnitState(vertLines, uX + 1 + uY * (upw + 1), isCellActive);
+    // top left square
+    updateUnitState(squareUnits, uX + uY * (upw + 1), isCellActive);
+    // top right square
+    updateUnitState(squareUnits, uX + 1 + uY * (upw + 1), isCellActive);
+    // bottom left square
+    updateUnitState(squareUnits, uX + (uY + 1) * (upw + 1), isCellActive);
+    // botton right square
+    updateUnitState(squareUnits, uX + 1 + (uY + 1) * (upw + 1), isCellActive);
 }

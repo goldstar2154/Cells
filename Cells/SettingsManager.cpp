@@ -12,15 +12,12 @@ const LPWSTR defaultActiveCellBorder = L"0, 0, 0";
 CSettingsManager::CSettingsManager()
     : cellWidth(0)
     , cellHeight(0)
+    , borderWidth(0)
     , inactiveCellFill(RGB(0, 0, 0))
     , inactiveCellBorder(RGB(0, 0, 0))
     , activeCellFill(RGB(0, 0, 0))
     , activeCellBorder(RGB(0, 0, 0))
-{
-}
-
-
-CSettingsManager::~CSettingsManager()
+    , delay(0)
 {
 }
 
@@ -74,8 +71,10 @@ long CSettingsManager::Read() const
     wcscat_s(configFilePath, MAX_PATH, L"//");
     wcscat_s(configFilePath, MAX_PATH, configFileName);
 
-    cellWidth = GetPrivateProfileInt(L"Cell", L"Width", 10, configFilePath);
-    cellHeight = GetPrivateProfileInt(L"Cell", L"Height", 10, configFilePath);
+    borderWidth = GetPrivateProfileInt(L"Border", L"Width", 1, configFilePath);
+    cellWidth = GetPrivateProfileInt(L"Cell", L"Width", 75, configFilePath);
+    cellHeight = GetPrivateProfileInt(L"Cell", L"Height", 75, configFilePath);
+    delay = GetPrivateProfileInt(L"Animation", L"Delay", 50, configFilePath);
 
     WCHAR tmp[256] = { 0 };
     GetPrivateProfileString(L"Cell", L"InactiveCellFill", defaultInactiveCellFill, tmp, 14, configFilePath);
@@ -96,6 +95,22 @@ long CSettingsManager::Read() const
     return 0;
 }
 
+void CSettingsManager::setScreenParam(long _screenWidth, long _screenHeight)
+{
+    screenWidth = _screenWidth;
+    screenHeight = _screenHeight;
+}
+
+long CSettingsManager::getScreenWidth() const
+{
+    return screenWidth;
+}
+
+long CSettingsManager::getScreenHeight() const
+{
+    return screenHeight;
+}
+
 int CSettingsManager::getCellWidth() const
 {
     return cellWidth;
@@ -104,6 +119,11 @@ int CSettingsManager::getCellWidth() const
 int CSettingsManager::getCellHeight() const
 {
     return cellHeight;
+}
+
+int CSettingsManager::getBorderWidth() const
+{
+    return borderWidth;
 }
 
 COLORREF CSettingsManager::getInactiveCellFill() const
@@ -124,4 +144,9 @@ COLORREF CSettingsManager::getActiveCellFill() const
 COLORREF CSettingsManager::getActiveCellBorder() const
 {
     return activeCellBorder;
+}
+
+int CSettingsManager::getDelay() const
+{
+    return delay;
 }
