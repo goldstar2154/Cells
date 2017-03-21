@@ -4,6 +4,9 @@
 #include "stdafx.h"
 #include "Cells.h"
 
+#include "SettingsManager.h"
+#include "RenderEngine.h"
+
 #define MAX_LOADSTRING 100
 
 // Global Variables:
@@ -16,6 +19,7 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+CRenderEngine renderEngine;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -25,7 +29,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Place code here.
+    long lRet = CSettingsManager::Instance().Read();
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -41,6 +45,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_CELLS));
 
     MSG msg;
+
+    renderEngine.start();
 
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
@@ -105,8 +111,24 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       return FALSE;
    }
 
-   ShowWindow(hWnd, nCmdShow);
+
+
+    // By default InitInstance shows window with nCmdShow = SW_SHOWDEFAULT (if other not specifed), but we need maximized state
+   ShowWindow(hWnd, SW_MAXIMIZE);
+
+   tagRECT rcClient;
+   GetClientRect(hWnd, &rcClient);
+   // Initializing render work area
+   renderEngine.setHandles(hWnd, GetDC(hWnd));
+   renderEngine.setWorkingArea(rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
+   renderEngine.setUnitSizes(CSettingsManager::Instance().getCellWidth(), CSettingsManager::Instance().getCellHeight());
+   renderEngine.setUnitColors(CSettingsManager::Instance().getInactiveCellFill(), CSettingsManager::Instance().getInactiveCellBorder(), 
+       CSettingsManager::Instance().getActiveCellFill(), CSettingsManager::Instance().getActiveCellBorder());
+ //  renderEngine.start();
+
+   // UpdateWindow also call WM_PAINT & render starts work
    UpdateWindow(hWnd);
+
 
    return TRUE;
 }
@@ -125,6 +147,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+    case WM_LBUTTONUP:
+        renderEngine.actionHandle(actionType::mouseClick, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        break;
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
@@ -146,9 +171,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
+            
+            BitBlt(hdc, 0, 0, renderEngine.getWidth(), renderEngine.getHeight(), renderEngine.getDC(), 0, 0, SRCCOPY);
 
-			LineTo(hdc, 50, 50);
             EndPaint(hWnd, &ps);
         }
         break;
