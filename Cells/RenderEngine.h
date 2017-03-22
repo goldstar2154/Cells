@@ -1,7 +1,5 @@
 #pragma once
 
-#include <thread>
-
 struct pixel;
 class CCellUnit;
 class CLineUnit;
@@ -22,14 +20,12 @@ public:
     void stop();
     void render();
     void handleAction(actionType, const int& mouseX, const int& mouseY);
-
     void setHandles(HWND _hWnd, HDC _hDC);
-
     HDC getDC() const;
 
 private:
-    int upw;    // units per width
-    int uph;    // units per height
+    int upw;
+    int uph;
 
     HWND hSourceWnd;
     HDC hSourceDC;
@@ -43,5 +39,7 @@ private:
     CSquareUnit* squareUnits;
 
     std::thread renderThread;
+
+    volatile bool needStop;
 };
 

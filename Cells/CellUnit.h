@@ -8,9 +8,9 @@ public:
     CCellUnit();
     ~CCellUnit();
 
-public:
     void render(pixel* _pixels) override;
     void changeState() override;
 
+private:
     long animationProgress;
 };

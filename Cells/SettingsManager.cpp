@@ -8,9 +8,17 @@ const LPWSTR defaultInactiveCellBorder = L"120, 120, 120";
 const LPWSTR defaultActiveCellFill = L"255, 255, 255";
 const LPWSTR defaultActiveCellBorder = L"0, 0, 0";
 
+const int defaultScreenWidth = 0;
+const int defaultScreenHeight = 0;
+const int defaultCellWidth = 25;
+const int defaultCellHeight = 25;
+const int defaultBorderWidth = 2;
+const int defaultDelay = 10;
 
 CSettingsManager::CSettingsManager()
-    : cellWidth(0)
+    : screenWidth(0)
+    , screenHeight(0)
+    , cellWidth(0)
     , cellHeight(0)
     , borderWidth(0)
     , inactiveCellFill(RGB(0, 0, 0))
@@ -71,10 +79,10 @@ long CSettingsManager::Read() const
     wcscat_s(configFilePath, MAX_PATH, L"//");
     wcscat_s(configFilePath, MAX_PATH, configFileName);
 
-    borderWidth = GetPrivateProfileInt(L"Border", L"Width", 1, configFilePath);
-    cellWidth = GetPrivateProfileInt(L"Cell", L"Width", 75, configFilePath);
-    cellHeight = GetPrivateProfileInt(L"Cell", L"Height", 75, configFilePath);
-    delay = GetPrivateProfileInt(L"Animation", L"Delay", 50, configFilePath);
+    borderWidth = GetPrivateProfileInt(L"Border",    L"Width",  defaultBorderWidth, configFilePath);
+    cellWidth   = GetPrivateProfileInt(L"Cell",      L"Width",  defaultCellWidth,   configFilePath);
+    cellHeight  = GetPrivateProfileInt(L"Cell",      L"Height", defaultCellHeight,  configFilePath);
+    delay       = GetPrivateProfileInt(L"Animation", L"Delay",  defaultDelay,       configFilePath);
 
     WCHAR tmp[256] = { 0 };
     GetPrivateProfileString(L"Cell", L"InactiveCellFill", defaultInactiveCellFill, tmp, 14, configFilePath);
@@ -95,7 +103,7 @@ long CSettingsManager::Read() const
     return 0;
 }
 
-void CSettingsManager::setScreenParam(long _screenWidth, long _screenHeight)
+void CSettingsManager::setScreenParam(const long& _screenWidth, const long& _screenHeight)
 {
     screenWidth = _screenWidth;
     screenHeight = _screenHeight;

@@ -15,28 +15,6 @@ CCellUnit::~CCellUnit()
 
 void CCellUnit::render(pixel* _pixels)
 {
-/*  static drawing without animation  
-    for (int i = 0; i < width; ++i)
-    {
-        for (int j = 0; j < height; ++j)
-        {
-            pixel* current = &_pixels[y * CSettingsManager::Instance().getScreenWidth() + x + j * CSettingsManager::Instance().getScreenWidth() + i];
-          
-            if (true == isActive)
-            {
-                current->r = GetRValue(CSettingsManager::Instance().getActiveCellFill());
-                current->g = GetGValue(CSettingsManager::Instance().getActiveCellFill());
-                current->b = GetBValue(CSettingsManager::Instance().getActiveCellFill());
-            }
-            else
-            {
-                current->r = GetRValue(CSettingsManager::Instance().getInactiveCellFill());
-                current->g = GetGValue(CSettingsManager::Instance().getInactiveCellFill());
-                current->b = GetBValue(CSettingsManager::Instance().getInactiveCellFill());
-            }
-        }
-    }
-*/
     if (animationStatus::stop == animation)
     {
         isNeedRedraw = false;

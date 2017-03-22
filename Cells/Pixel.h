@@ -1,6 +1,7 @@
 #pragma once
 
-struct pixel {
+struct pixel 
+{
     union
     {
         struct

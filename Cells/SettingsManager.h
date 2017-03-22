@@ -12,7 +12,7 @@ public:
     CSettingsManager();
 
     long Read() const;
-    void setScreenParam(long _screenWidth, long _screenHeight);
+    void setScreenParam(const long& _screenWidth, const long& _screenHeight);
 
     long getScreenWidth() const;
     long getScreenHeight() const;

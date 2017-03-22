@@ -1,20 +1,37 @@
 #include "stdafx.h"
 #include "RenderEngine.h"
 #include "Pixel.h"
-#include <stdio.h>
-#include <iostream>
 #include "SettingsManager.h"
 #include "CellUnit.h"
 #include "LineUnit.h"
 #include "SquareUnit.h"
 
 CRenderEngine::CRenderEngine()
+    : upw(0)
+    , uph(0)
+    , hSourceWnd(nullptr)
+    , hSourceDC(nullptr)
+    , hWorkingDC(nullptr)
+    , hBitmap(nullptr)
+    , pixels(nullptr)
+    , cellUnits(nullptr)
+    , horLines(nullptr)
+    , vertLines(nullptr)
+    , squareUnits(nullptr)
+    , needStop(false)
 {
 }
 
 
 CRenderEngine::~CRenderEngine()
 {
+    DeleteDC(hWorkingDC);
+    DeleteObject(hBitmap);
+
+    delete[] squareUnits;
+    delete[] vertLines;
+    delete[] horLines;
+    delete[] cellUnits;
 }
 
 void CRenderEngine::setHandles(HWND _hWnd, HDC _hDC)
@@ -50,7 +67,6 @@ void CRenderEngine::start()
                             j * CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth() * (j + 1));
         }
     }
-
     // lines
     // horizontal lines
     horLines = new CLineUnit[upw * (uph + 1)];
@@ -78,7 +94,6 @@ void CRenderEngine::start()
                 j * (CSettingsManager::Instance().getCellHeight() + CSettingsManager::Instance().getBorderWidth()) + CSettingsManager::Instance().getBorderWidth());
         }
     }
-    
     // squares
     squareUnits = new CSquareUnit[(upw + 1) * (uph + 1)];
     for (int i = 0; i < upw + 1; ++i)
@@ -113,9 +128,14 @@ void CRenderEngine::start()
     
     hBitmap = CreateDIBSection(hSourceDC, &bmi, DIB_RGB_COLORS, (void**)&pixels, NULL, 0);
 
-    // main render thread
+    // main render thread, always run
     renderThread = std::thread([=] { render(); });
     renderThread.detach();
+}
+
+void CRenderEngine::stop()
+{
+    TerminateThread(renderThread.native_handle(), 1);
 }
 
 template<typename T>
@@ -181,20 +201,12 @@ void CRenderEngine::handleAction(actionType, const int& mouseX, const int& mouse
     bool isCellActive = current->getState();
 
     // after hitting we need update states of all nearby units
-    // top line
-    updateUnitState(horLines, uX + uY * upw, isCellActive);
-    // bottom line
-    updateUnitState(horLines, uX + (uY + 1) * upw, isCellActive);
-    // left line
-    updateUnitState(vertLines, uX + uY * (upw + 1), isCellActive);
-    // right line
-    updateUnitState(vertLines, uX + 1 + uY * (upw + 1), isCellActive);
-    // top left square
-    updateUnitState(squareUnits, uX + uY * (upw + 1), isCellActive);
-    // top right square
-    updateUnitState(squareUnits, uX + 1 + uY * (upw + 1), isCellActive);
-    // bottom left square
-    updateUnitState(squareUnits, uX + (uY + 1) * (upw + 1), isCellActive);
-    // botton right square
-    updateUnitState(squareUnits, uX + 1 + (uY + 1) * (upw + 1), isCellActive);
+    updateUnitState(horLines,    uX + uY * upw,                 isCellActive);  // top line
+    updateUnitState(horLines,    uX + (uY + 1) * upw,           isCellActive);  // bottom line
+    updateUnitState(vertLines,   uX + uY * (upw + 1),           isCellActive);  // left line
+    updateUnitState(vertLines,   uX + 1 + uY * (upw + 1),       isCellActive);  // right line
+    updateUnitState(squareUnits, uX + uY * (upw + 1),           isCellActive);  // top left square
+    updateUnitState(squareUnits, uX + 1 + uY * (upw + 1),       isCellActive);  // top right square
+    updateUnitState(squareUnits, uX + (uY + 1) * (upw + 1),     isCellActive);  // bottom left square
+    updateUnitState(squareUnits, uX + 1 + (uY + 1) * (upw + 1), isCellActive);  // botton right square
 }

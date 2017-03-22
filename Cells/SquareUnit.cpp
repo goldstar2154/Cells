@@ -51,6 +51,8 @@ void CSquareUnit::render(pixel* _pixels)
 
 void CSquareUnit::changeState()
 {
+    bool bOldIsActive = isActive;
+
     if (visibilityCounter > 0)
         isActive = true;
     else

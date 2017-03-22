@@ -19,7 +19,11 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
+typedef std::pair <actionType, std::pair<int, int>> action; // Action type: actionType (mouseClick), posX, posY
 CRenderEngine renderEngine;
+std::stack<action> messageStack;
+std::mutex messageLocker;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -45,8 +49,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_CELLS));
 
     MSG msg;
-
-    renderEngine.start();
 
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
@@ -101,34 +103,31 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // Store instance handle in our global variable
+    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd)
-   {
-      return FALSE;
-   }
-
-
+    if (!hWnd)
+    {
+        return FALSE;
+    }
 
     // By default InitInstance shows window with nCmdShow = SW_SHOWDEFAULT (if other not specifed), but we need maximized state
-   ShowWindow(hWnd, SW_MAXIMIZE);
+    ShowWindow(hWnd, SW_MAXIMIZE);
 
-   tagRECT rcClient;
-   GetClientRect(hWnd, &rcClient);
+    tagRECT rcClient;
+    GetClientRect(hWnd, &rcClient);
    
-   CSettingsManager::Instance().setScreenParam(rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
-   renderEngine.setHandles(hWnd, GetDC(hWnd));
+    CSettingsManager::Instance().setScreenParam(rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
+    renderEngine.setHandles(hWnd, GetDC(hWnd));
+    // let's go
+    renderEngine.start();
 
- //  renderEngine.start();
+    // UpdateWindow also call WM_PAINT & render starts work
+    UpdateWindow(hWnd);
 
-   // UpdateWindow also call WM_PAINT & render starts work
-   UpdateWindow(hWnd);
-
-
-   return TRUE;
+    return TRUE;
 }
 
 //
@@ -145,8 +144,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-    case WM_LBUTTONUP:
+    case WM_LBUTTONUP:      
+        messageLocker.lock();
+        messageStack.emplace(actionType::mouseClick, std::make_pair(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)));
         renderEngine.handleAction(actionType::mouseClick, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        messageLocker.unlock();
+        break;
+    case WM_CHAR:
+        if (wParam == 0x1A) // ascii Ctrl+Z code
+        {
+            messageLocker.lock();
+            if (messageStack.size() > 0)
+            {
+                const action& top = messageStack.top();
+                renderEngine.handleAction(top.first, top.second.first, top.second.second);
+                messageStack.pop();
+            }
+            messageLocker.unlock();
+        }
         break;
     case WM_COMMAND:
         {
@@ -174,6 +189,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
+        renderEngine.stop();
         PostQuitMessage(0);
         break;
     default:
